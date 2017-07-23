@@ -100,14 +100,7 @@ void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** mat
     int_image nnf = empty_image( int, nns, vects.ty);
     float_image dis = empty_image( float, nns, vects.ty);
     int_image labels = empty_image( int, edges->tx, edges->ty);
-    float_image* edge = {NEWA(float,edges->tx*edges->ty),edges->tx,edges->ty};
-    memset(edge->pixels,0x7F,edges->tx*edges->ty*sizeof(float));
-    for (int y = 0; y < match_stereo[0]->height; y++){
-        for (int x = 0; x < match_stereo[0]->width; x++) {
-            edge->pixels[x+y*edges->tx] = weight * edges->pixels[x+y*edges->tx] + (1-weight) / edges->tx * match_stereo[0]->data[y*match_stereo[0]->stride+x];
-        }
-    }
-    dist_trf_nnfield_subset( &nnf, &dis, &labels, &seeds, edge, NULL, &seeds, n_thread);
+    dist_trf_nnfield_subset( &nnf, &dis, &labels, &seeds, edges, NULL, &seeds, n_thread);
            
     // apply kernel to the distance
     #if defined(USE_OPENMP)

@@ -58,6 +58,14 @@ int main(int argc, char **argv){
     variational_params_default(&flow_params);
     image_t *wx = image_new(im1->width, im1->height), *wy = image_new(im1->width, im1->height);
     
+    float_image edge = {NEWA(float,edges.tx * edges.ty),edges.tx,edges.ty};
+    memset(edge.pixels,0x7F,edges.tx * edges.ty * sizeof(float));
+    for (int y = 0; y < match_stereo[0]->height; y++){
+        for (int x = 0; x < match_stereo[0]->width; x++) {
+            edge.pixels[x+y*edges.tx] = weight * edges.pixels[x+y*edges.tx] + (1-weight) / edges.tx * match_stereo[0]->data[y*match_stereo[0]->stride+x];
+        }
+    }
+    
     // read optional arguments 
     #define isarg(key)  !strcmp(a,key)
     int current_arg = 7;
@@ -122,7 +130,7 @@ int main(int argc, char **argv){
     
     // compute interpolation and energy minimization
     color_image_t *imlab = rgb_to_lab(im1);
-    epic(wx, wy, imlab, matches_stereo, matches_flow, &edges, &epic_params, 1);
+    epic(wx, wy, imlab, matches_stereo, matches_flow, &edge, &epic_params, 1);
     // energy minimization
     variational(wx, wy, im1, im2, &flow_params);
     // write output file and free memory
