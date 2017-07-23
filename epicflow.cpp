@@ -37,7 +37,7 @@ void usage(){
 
 
 int main(int argc, char **argv){
-    if( argc<6){
+    if( argc<7){
         if(argc>1) fprintf(stderr,"Error, not enough arguments\n");
         usage();
         exit(1);
@@ -47,8 +47,9 @@ int main(int argc, char **argv){
     color_image_t *im1 = color_image_load(argv[1]);
     color_image_t *im2 = color_image_load(argv[2]);
     float_image edges = read_edges(argv[3], im1->width, im1->height);
-    image_t** matches = readFlowFile(argv[4]);
-    const char *outputfile = argv[5];
+    image_t** matches_stereo = readFlowFile(argv[4]);
+    image_t** matches_flow = readFlowFile(argv[5]);
+    const char *outputfile = argv[6];
 
     // prepare variables
     epic_params_t epic_params;
@@ -59,7 +60,7 @@ int main(int argc, char **argv){
     
     // read optional arguments 
     #define isarg(key)  !strcmp(a,key)
-    int current_arg = 6;
+    int current_arg = 7;
     while(current_arg < argc ){
         const char* a = argv[current_arg++];
         if( isarg("-h") || isarg("-help") ) 
@@ -121,7 +122,7 @@ int main(int argc, char **argv){
     
     // compute interpolation and energy minimization
     color_image_t *imlab = rgb_to_lab(im1);
-    epic(wx, wy, imlab, matches, &edges, &epic_params, 1);
+    epic(wx, wy, imlab, matches_stereo, matches_flow, &edges, &epic_params, 1);
     // energy minimization
     variational(wx, wy, im1, im2, &flow_params);
     // write output file and free memory

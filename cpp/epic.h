@@ -27,5 +27,5 @@ void epic_params_default(epic_params_t* params);
     params                 parameters
     n_thread               number of threads
 */
-void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** match, float_image* edges, const epic_params_t* params, const int n_thread);
+void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** match_stereo, image_t** match_flow , float_image* edges, const epic_params_t* params, const int n_thread);
 

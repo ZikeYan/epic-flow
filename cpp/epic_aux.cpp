@@ -11,9 +11,7 @@
 extern "C" {
     #define integer int
     #define real float
-    extern int sgels_(char *trans, integer *m, integer *n, integer *nrhs, 
-                        real *a, integer *lda, real *b, integer *ldb, 
-                        real *work, integer *lwork, integer *info);
+    extern int sgels_(char *trans, integer *m, integer *n, integer *nrhs, real *a, integer *lda, real *b, integer *ldb, real *work, integer *lwork, integer *info);
 }
 
 using namespace std;

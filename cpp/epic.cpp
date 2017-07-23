@@ -11,13 +11,14 @@
 
 #include "io.h"
 
+int scale = 3;
 
 /* given a set of matches, return the set of points in the first image where a match exists */
 static int_image matches_to_seeds(image_t** flow, const int n_thread){
     int a=0;
     int y,x;
-    for (y = 0; y < flow[0]->height; y++){
-        for (x = 0; x < flow[0]->width; x++) {
+    for (y = 0; y < flow[0]->height; y=y+scale){
+        for (x = 0; x < flow[0]->width; x=x+scale) {
             if ((flow[0]->data[y*flow[0]->stride+x] != 0) && (flow[1]->data[y*flow[1]->stride+x] != 0)) {
                 a++;
             }
@@ -25,8 +26,8 @@ static int_image matches_to_seeds(image_t** flow, const int n_thread){
     }
     int_image res = empty_image(int, 2, a);
     int i=0;
-    for (y = 0; y < flow[0]->height; y++){
-        for (x = 0; x < flow[0]->width; x++) {
+    for (y = 0; y < flow[0]->height; y=y+scale){
+        for (x = 0; x < flow[0]->width; x=x+scale) {
             if ((flow[0]->data[y*flow[0]->stride+x] != 0) && (flow[1]->data[y*flow[1]->stride+x] != 0)) {
                 res.pixels[2*i] = x;
                 res.pixels[2*i+1] = y;
@@ -41,8 +42,8 @@ static int_image matches_to_seeds(image_t** flow, const int n_thread){
 static float_image matches_to_vects(image_t** flow, const int n_thread){
     int a=0;
     int y,x;
-    for (y = 0; y < flow[0]->height; y++){
-        for (x = 0; x < flow[0]->width; x++) {
+    for (y = 0; y < flow[0]->height; y=y+scale){
+        for (x = 0; x < flow[0]->width; x=x+scale) {
             if ((flow[0]->data[y*flow[0]->stride+x] != 0) && (flow[1]->data[y*flow[1]->stride+x] != 0)) {
                 a++;
             }
@@ -50,8 +51,8 @@ static float_image matches_to_vects(image_t** flow, const int n_thread){
     }
     float_image res = empty_image(float, 2, a);
     int i=0;
-    for (y = 0; y < flow[0]->height; y++){
-        for (x = 0; x < flow[0]->width; x++) {
+    for (y = 0; y < flow[0]->height; y=y+scale){
+        for (x = 0; x < flow[0]->width; x=x+scale) {
             if ((flow[0]->data[y*flow[0]->stride+x] != 0) && (flow[1]->data[y*flow[1]->stride+x] != 0)) {
                 res.pixels[2*i] = flow[0]->data[y*flow[0]->stride+x];
                 res.pixels[2*i+1] = flow[1]->data[y*flow[1]->stride+x];
@@ -65,7 +66,7 @@ static float_image matches_to_vects(image_t** flow, const int n_thread){
 
 /* set params to default value */
 void epic_params_default(epic_params_t* params){
-    strcpy(params->method, "LA");
+    strcpy(params->method, "NW");
     params->saliency_th = 0.045f;
     params->pref_nn = 25;
     params->pref_th = 5.0f;
@@ -84,11 +85,13 @@ void epic_params_default(epic_params_t* params){
     params                 parameters
     n_thread               number of threads
 */
-void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** match, float_image* edges, const epic_params_t* params, const int n_thread){
+void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** match_stereo, image_t** match_flow, float_image* edges, const epic_params_t* params, const int n_thread){
 
+    float weight = 0.7;
     // prepare variables
-    int_image seeds = matches_to_seeds(match, n_thread);
-    float_image vects = matches_to_vects(match, n_thread);
+    int_image seeds = matches_to_seeds(match_flow, n_thread);
+    float_image vects = matches_to_vects(match_flow, n_thread);
+    float_image disp = matches_to_vects(match_stereo, n_thread);
     const int nns = MIN(params->nn, vects.ty);
     if( nns < params->nn ) fprintf(stderr, "Warning: not enough matches for interpolating\n");
     if( params->verbose ) printf("Computing %d nearest neighbors for each match\n", nns);
@@ -97,7 +100,14 @@ void epic(image_t *flowx, image_t *flowy, const color_image_t *im, image_t** mat
     int_image nnf = empty_image( int, nns, vects.ty);
     float_image dis = empty_image( float, nns, vects.ty);
     int_image labels = empty_image( int, edges->tx, edges->ty);
-    dist_trf_nnfield_subset( &nnf, &dis, &labels, &seeds, edges, NULL, &seeds, n_thread);  
+    float_image* edge = {NEWA(float,edges->tx*edges->ty),edges->tx,edges->ty};
+    memset(edge->pixels,0x7F,edges->tx*edges->ty*sizeof(float));
+    for (int y = 0; y < match_stereo[0]->height; y++){
+        for (int x = 0; x < match_stereo[0]->width; x++) {
+            edge->pixels[x+y*edges->tx] = weight * edges->pixels[x+y*edges->tx] + (1-weight) / edges->tx * match_stereo[0]->data[y*match_stereo[0]->stride+x];
+        }
+    }
+    dist_trf_nnfield_subset( &nnf, &dis, &labels, &seeds, edge, NULL, &seeds, n_thread);
            
     // apply kernel to the distance
     #if defined(USE_OPENMP)
